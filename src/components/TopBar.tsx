@@ -1,10 +1,12 @@
-import { Copy, Check, Users, Wifi, WifiOff, Code2 } from 'lucide-react';
+import { Copy, Check, Users, Wifi, WifiOff, Code2, Video, VideoOff } from 'lucide-react';
 import { useState } from 'react';
 
 interface TopBarProps {
   sessionId?: string;
   isConnected?: boolean;
   connectedUsers?: number;
+  isHuddleOpen?: boolean;
+  onHuddleToggle?: () => void;
 }
 
 /**
@@ -17,7 +19,7 @@ interface TopBarProps {
  * - Connection status indicator
  * - Connected users count
  */
-export function TopBar({ sessionId, isConnected = false, connectedUsers = 1 }: TopBarProps) {
+export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isHuddleOpen = false, onHuddleToggle }: TopBarProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = async () => {
@@ -70,9 +72,33 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1 }: T
         </div>
       )}
 
-      {/* Right: Connection Status and Users */}
+      {/* Right: Huddle Button, Connection Status and Users */}
       {sessionId && (
         <div className="flex items-center gap-4">
+          {/* Huddle Toggle Button */}
+          {onHuddleToggle && (
+            <button
+              onClick={onHuddleToggle}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                isHuddleOpen
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary hover:bg-accent text-secondary-foreground'
+              }`}
+            >
+              {isHuddleOpen ? (
+                <>
+                  <VideoOff className="w-4 h-4" />
+                  <span className="hidden sm:inline">Leave huddle</span>
+                </>
+              ) : (
+                <>
+                  <Video className="w-4 h-4" />
+                  <span className="hidden sm:inline">Join huddle</span>
+                </>
+              )}
+            </button>
+          )}
+
           {/* Connected Users */}
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Users className="w-4 h-4" />
