@@ -18,11 +18,11 @@ import { executeJavaScript } from '@/lib/codeExecution';
  * - Language selector (JavaScript, Python, SQL)
  * - Code execution for JS and Python
  * - Output panel for results
- * - Socket.IO connection for real-time collaboration (prepared for backend)
+ * - Socket.IO connection for real-time collaboration (shared workspace)
  * 
  * The session ID comes from the URL parameter and is used to:
  * - Display in the top bar
- * - Create a Socket.IO room for collaboration
+ * - Create a Socket.IO room for collaboration / huddles
  */
 export function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();

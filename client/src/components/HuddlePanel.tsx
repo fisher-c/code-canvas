@@ -56,10 +56,10 @@ export function HuddlePanel({ sessionId, onClose }: HuddlePanelProps) {
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/80 backdrop-blur-sm">
           <Video className="w-12 h-12 text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground text-center px-4">
-            Video room placeholder
+            Team huddle placeholder
           </p>
           <p className="text-xs text-muted-foreground/70 mt-1 text-center px-4">
-            Replace URL with your video provider
+            Drop in your video provider to bring voice/video into the workspace
           </p>
           <code className="text-xs mt-3 px-3 py-1.5 bg-secondary rounded-md text-muted-foreground font-mono">
             Room: {sessionId}

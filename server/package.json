@@ -1,0 +1,19 @@
+{
+  "name": "codepair-server",
+  "version": "1.0.0",
+  "description": "Express + Socket.IO backend for CodePair collaborative editor",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

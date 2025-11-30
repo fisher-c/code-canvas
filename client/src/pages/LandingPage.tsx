@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Code2, Users, Zap, Globe } from 'lucide-react';
+import { Code2, Users, Zap, Globe, Sparkles } from 'lucide-react';
 import { TopBar } from '@/components/TopBar';
 import { generateSessionId } from '@/lib/sessionUtils';
 
@@ -7,7 +7,7 @@ import { generateSessionId } from '@/lib/sessionUtils';
  * Landing page component.
  * 
  * Features:
- * - App description and value proposition
+ * - Collaboration-focused messaging for CodePair
  * - "Create new session" button that generates a random session ID
  * - Navigates to /session/:sessionId on click
  */
@@ -32,14 +32,12 @@ export function LandingPage() {
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4 tracking-tight">
-            Code Together,{' '}
-            <span className="text-primary">Anywhere</span>
+            CodePair: <span className="text-primary">A collaborative problem-solving space</span>
           </h1>
 
           {/* Subheadline */}
-          <p className="text-lg text-muted-foreground mb-8 max-w-lg mx-auto">
-            A real-time collaborative coding environment for technical interviews. 
-            Write, run, and discuss code together.
+          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Pair programming, study groups, mock interviews, tutoring sessions, or quick huddles—CodePair keeps everyone in sync with real-time editing, shared output, and a lightweight huddle panel.
           </p>
 
           {/* CTA Button */}
@@ -48,25 +46,25 @@ export function LandingPage() {
             className="inline-flex items-center gap-2 px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg shadow-lg hover:shadow-glow transition-all duration-200 text-lg"
           >
             <Zap className="w-5 h-5" />
-            Create New Session
+            Start a CodePair session
           </button>
 
           {/* Features Grid */}
           <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6">
             <FeatureCard
               icon={<Globe className="w-6 h-6" />}
-              title="Multi-Language"
-              description="Support for JavaScript, Python, and SQL with syntax highlighting"
+              title="Multi-language"
+              description="JavaScript, Python (Pyodide), and SQL highlighting for instant context switching."
             />
             <FeatureCard
-              icon={<Zap className="w-6 h-6" />}
-              title="Instant Execution"
-              description="Run code directly in your browser with real-time output"
+              icon={<Sparkles className="w-6 h-6" />}
+              title="Shared output"
+              description="Run JS in-browser, Python via Pyodide, and compare results together."
             />
             <FeatureCard
               icon={<Users className="w-6 h-6" />}
-              title="Real-Time Collab"
-              description="See changes instantly as your team types"
+              title="Real-time collab"
+              description="Live cursors and updates for pair programming, tutoring, and group study."
             />
           </div>
         </div>
@@ -74,7 +72,7 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="py-6 text-center text-sm text-muted-foreground">
-        Built for seamless technical interviews
+        Built for collaborative coding, learning, and huddles.
       </footer>
     </div>
   );

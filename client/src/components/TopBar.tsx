@@ -41,7 +41,10 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Code2 className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold text-foreground">CodePair</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-lg font-semibold text-foreground">CodePair</span>
+            <span className="text-xs text-muted-foreground">Shared workspace for teams</span>
+          </div>
         </div>
       </div>
 
@@ -49,7 +52,7 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
       {sessionId && (
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-md">
-            <span className="text-sm text-muted-foreground">Session:</span>
+            <span className="text-sm text-muted-foreground">Workspace:</span>
             <code className="text-sm font-mono font-medium text-foreground">{sessionId}</code>
           </div>
           
@@ -65,7 +68,7 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
             ) : (
               <>
                 <Copy className="w-4 h-4" />
-                <span>Copy link</span>
+                <span>Share link</span>
               </>
             )}
           </button>
@@ -110,12 +113,12 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
             {isConnected ? (
               <>
                 <Wifi className="w-4 h-4 text-success" />
-                <span className="text-xs text-success">Connected</span>
+                <span className="text-xs text-success">Live sync</span>
               </>
             ) : (
               <>
                 <WifiOff className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Offline</span>
+                <span className="text-xs text-muted-foreground">Offline (local only)</span>
               </>
             )}
           </div>
