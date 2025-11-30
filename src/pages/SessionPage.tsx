@@ -5,6 +5,7 @@ import { TopBar } from '@/components/TopBar';
 import { LanguageSelector, type Language } from '@/components/LanguageSelector';
 import { CodeEditor, DEFAULT_CODE } from '@/components/CodeEditor';
 import { OutputPanel } from '@/components/OutputPanel';
+import { HuddlePanel } from '@/components/HuddlePanel';
 import { useSocket } from '@/hooks/useSocket';
 import { usePyodide } from '@/hooks/usePyodide';
 import { executeJavaScript } from '@/lib/codeExecution';
@@ -37,6 +38,7 @@ export function SessionPage() {
   const [output, setOutput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [isHuddleOpen, setIsHuddleOpen] = useState(false);
 
   // Current code based on selected language
   const currentCode = codeByLanguage[language];
@@ -98,54 +100,73 @@ export function SessionPage() {
     }
   };
 
+  const handleHuddleToggle = () => {
+    setIsHuddleOpen(prev => !prev);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <TopBar 
         sessionId={sessionId} 
         isConnected={isConnected}
         connectedUsers={connectedUsers}
+        isHuddleOpen={isHuddleOpen}
+        onHuddleToggle={handleHuddleToggle}
       />
       
-      <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between">
-          <LanguageSelector value={language} onChange={handleLanguageChange} />
-          
-          <button
-            onClick={handleRun}
-            disabled={isRunning || (language === 'python' && isPyodideLoading)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground font-medium rounded-md shadow-sm hover:shadow transition-all duration-200"
-          >
-            {isRunning || (language === 'python' && isPyodideLoading) ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {isPyodideLoading ? 'Loading Python...' : 'Running...'}
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4" />
-                Run
-              </>
-            )}
-          </button>
+      <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden">
+        {/* Main Editor Area */}
+        <div className="flex-1 flex flex-col gap-4 min-h-0 min-w-0">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between">
+            <LanguageSelector value={language} onChange={handleLanguageChange} />
+            
+            <button
+              onClick={handleRun}
+              disabled={isRunning || (language === 'python' && isPyodideLoading)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground font-medium rounded-md shadow-sm hover:shadow transition-all duration-200"
+            >
+              {isRunning || (language === 'python' && isPyodideLoading) ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {isPyodideLoading ? 'Loading Python...' : 'Running...'}
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" />
+                  Run
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Editor + Output Grid */}
+          <div className="flex-1 grid grid-rows-[1fr_200px] gap-4 min-h-0">
+            {/* Code Editor */}
+            <CodeEditor
+              value={currentCode}
+              onChange={handleCodeChange}
+              language={language}
+            />
+
+            {/* Output Panel */}
+            <OutputPanel
+              output={output}
+              error={error}
+              isRunning={isRunning || (language === 'python' && isPyodideLoading)}
+            />
+          </div>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 grid grid-rows-[1fr_200px] gap-4 min-h-0">
-          {/* Code Editor */}
-          <CodeEditor
-            value={currentCode}
-            onChange={handleCodeChange}
-            language={language}
-          />
-
-          {/* Output Panel */}
-          <OutputPanel
-            output={output}
-            error={error}
-            isRunning={isRunning || (language === 'python' && isPyodideLoading)}
-          />
-        </div>
+        {/* Huddle Panel - shown on the right (desktop) or bottom (mobile) */}
+        {isHuddleOpen && sessionId && (
+          <div className="w-full lg:w-80 xl:w-96 h-64 lg:h-full shrink-0">
+            <HuddlePanel 
+              sessionId={sessionId} 
+              onClose={() => setIsHuddleOpen(false)} 
+            />
+          </div>
+        )}
       </div>
     </div>
   );
