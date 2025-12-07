@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Play, Loader2 } from 'lucide-react';
 import { TopBar } from '@/components/TopBar';
@@ -9,69 +9,175 @@ import { HuddlePanel } from '@/components/HuddlePanel';
 import { useSocket } from '@/hooks/useSocket';
 import { usePyodide } from '@/hooks/usePyodide';
 import { executeJavaScript } from '@/lib/codeExecution';
+import {
+  ApiError,
+  createSession as apiCreateSession,
+  getCodeSnapshot,
+  getSession,
+  joinSession,
+  leaveSession,
+  saveCode,
+} from '@/lib/api';
 
 /**
  * Session page component - main coding interface.
- * 
- * Features:
- * - Monaco code editor with syntax highlighting
- * - Language selector (JavaScript, Python, SQL)
- * - Code execution for JS and Python
- * - Output panel for results
- * - Socket.IO connection for real-time collaboration (shared workspace)
- * 
- * The session ID comes from the URL parameter and is used to:
- * - Display in the top bar
- * - Create a Socket.IO room for collaboration / huddles
+ *
+ * Connects to the backend to create/fetch sessions, hydrate saved code,
+ * autosave changes, and register participants. Real-time edits are
+ * shared over Socket.IO.
  */
 export function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  
-  // Code state - separate code for each language to preserve work
+
   const [codeByLanguage, setCodeByLanguage] = useState<Record<Language, string>>({
     javascript: DEFAULT_CODE.javascript,
     python: DEFAULT_CODE.python,
     sql: DEFAULT_CODE.sql,
   });
-  
+
   const [language, setLanguage] = useState<Language>('javascript');
   const [output, setOutput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [presenceCount, setPresenceCount] = useState(1);
+  const [participantId, setParticipantId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isHuddleOpen, setIsHuddleOpen] = useState(false);
 
-  // Current code based on selected language
+  const saveTimers = useRef<Record<Language, number | null>>({
+    javascript: null,
+    python: null,
+    sql: null,
+  });
+  const mountedRef = useRef(true);
+
   const currentCode = codeByLanguage[language];
 
-  // Socket.IO connection for real-time collaboration
-  const handleCodeUpdateFromSocket = useCallback((newCode: string) => {
-    setCodeByLanguage(prev => ({ ...prev, [language]: newCode }));
-  }, [language]);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-  const { isConnected, connectedUsers, emitCodeUpdate } = useSocket({
+  const handleCodeUpdateFromSocket = useCallback(
+    (newCode: string, incomingLanguage?: Language) => {
+      const targetLanguage = incomingLanguage ?? language;
+      setCodeByLanguage((prev) => ({ ...prev, [targetLanguage]: newCode }));
+      if (incomingLanguage && sessionId) {
+        void saveCode(sessionId, { language: incomingLanguage, content: newCode }).catch(() => {
+          /* best-effort persist */
+        });
+      }
+    },
+    [language, sessionId]
+  );
+
+  const { isConnected, emitCodeUpdate } = useSocket({
     sessionId: sessionId || '',
     onCodeUpdate: handleCodeUpdateFromSocket,
   });
 
-  // Pyodide for Python execution
   const { runPython, isLoading: isPyodideLoading } = usePyodide();
 
-  // Handle code changes
+  useEffect(() => {
+    if (!sessionId) return;
+
+    let canceled = false;
+    const bootstrap = async () => {
+      setIsInitializing(true);
+      setSessionError(null);
+
+      try {
+        let session;
+        try {
+          session = await apiCreateSession(sessionId);
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 409) {
+            session = await getSession(sessionId);
+          } else {
+            throw err;
+          }
+        }
+
+        if (canceled) return;
+
+        const snapshot = await getCodeSnapshot(session.sessionId);
+        if (canceled) return;
+
+        const hydrated: Record<Language, string> = { ...DEFAULT_CODE };
+        Object.entries(snapshot.codeByLanguage).forEach(([lang, doc]) => {
+          hydrated[lang as Language] = doc.content;
+        });
+        setCodeByLanguage(hydrated);
+
+        const presence = await joinSession(session.sessionId, { displayName: 'Guest' });
+        if (canceled) return;
+
+        setPresenceCount(presence.activeParticipants || 1);
+        setParticipantId(presence.participantId ?? null);
+      } catch {
+        if (canceled) return;
+        setSessionError('Unable to reach the backend. You can continue offline.');
+      } finally {
+        if (!canceled) setIsInitializing(false);
+      }
+    };
+
+    bootstrap();
+
+    return () => {
+      canceled = true;
+    };
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId || !participantId) return;
+    return () => {
+      void leaveSession(sessionId, participantId).catch(() => {
+        /* non-blocking cleanup */
+      });
+    };
+  }, [participantId, sessionId]);
+
+  const scheduleSave = useCallback(
+    (lang: Language, content: string) => {
+      if (!sessionId) return;
+      const existing = saveTimers.current[lang];
+      if (existing) {
+        window.clearTimeout(existing);
+      }
+      saveTimers.current[lang] = window.setTimeout(async () => {
+        try {
+          await saveCode(sessionId, { language: lang, content });
+          if (mountedRef.current) setSessionError(null);
+        } catch {
+          if (mountedRef.current) {
+            setSessionError('Autosave failed. Changes are only local right now.');
+          }
+        }
+      }, 500);
+    },
+    [sessionId]
+  );
+
+  const isBusy = useMemo(
+    () => isRunning || (language === 'python' && isPyodideLoading),
+    [isRunning, isPyodideLoading, language]
+  );
+
   const handleCodeChange = (newCode: string) => {
-    setCodeByLanguage(prev => ({ ...prev, [language]: newCode }));
-    // Emit to other users via Socket.IO
-    emitCodeUpdate(newCode);
+    setCodeByLanguage((prev) => ({ ...prev, [language]: newCode }));
+    emitCodeUpdate(newCode, language);
+    scheduleSave(language, newCode);
   };
 
-  // Handle language change
   const handleLanguageChange = (newLanguage: Language) => {
     setLanguage(newLanguage);
-    // Clear output when switching languages
     setOutput('');
     setError(null);
   };
 
-  // Execute code
   const handleRun = async () => {
     setIsRunning(true);
     setOutput('');
@@ -79,17 +185,14 @@ export function SessionPage() {
 
     try {
       if (language === 'javascript') {
-        // Execute JavaScript in browser
         const result = executeJavaScript(currentCode);
         setOutput(result.output);
         setError(result.error);
       } else if (language === 'python') {
-        // Execute Python using Pyodide
         const result = await runPython(currentCode);
         setOutput(result.output);
         setError(result.error);
       } else if (language === 'sql') {
-        // SQL execution not supported yet
         setOutput('');
         setError('SQL execution is not supported yet. Syntax highlighting only.');
       }
@@ -101,32 +204,44 @@ export function SessionPage() {
   };
 
   const handleHuddleToggle = () => {
-    setIsHuddleOpen(prev => !prev);
+    setIsHuddleOpen((prev) => !prev);
   };
+
+  if (!sessionId) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background text-foreground">
+        <p className="text-sm text-muted-foreground">No session ID provided.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      <TopBar 
-        sessionId={sessionId} 
+      <TopBar
+        sessionId={sessionId}
         isConnected={isConnected}
-        connectedUsers={connectedUsers}
+        connectedUsers={presenceCount}
         isHuddleOpen={isHuddleOpen}
         onHuddleToggle={handleHuddleToggle}
       />
-      
+
       <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden">
-        {/* Main Editor Area */}
         <div className="flex-1 flex flex-col gap-4 min-h-0 min-w-0">
-          {/* Toolbar */}
+          {sessionError && (
+            <div className="px-3 py-2 rounded-md bg-amber-100 text-amber-900 text-sm border border-amber-200">
+              {sessionError}
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <LanguageSelector value={language} onChange={handleLanguageChange} />
-            
+
             <button
               onClick={handleRun}
-              disabled={isRunning || (language === 'python' && isPyodideLoading)}
+              disabled={isBusy || isInitializing}
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground font-medium rounded-md shadow-sm hover:shadow transition-all duration-200"
             >
-              {isRunning || (language === 'python' && isPyodideLoading) ? (
+              {isBusy ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   {isPyodideLoading ? 'Loading Python...' : 'Running...'}
@@ -140,31 +255,16 @@ export function SessionPage() {
             </button>
           </div>
 
-          {/* Editor + Output Grid */}
           <div className="flex-1 grid grid-rows-[1fr_200px] gap-4 min-h-0">
-            {/* Code Editor */}
-            <CodeEditor
-              value={currentCode}
-              onChange={handleCodeChange}
-              language={language}
-            />
+            <CodeEditor value={currentCode} onChange={handleCodeChange} language={language} />
 
-            {/* Output Panel */}
-            <OutputPanel
-              output={output}
-              error={error}
-              isRunning={isRunning || (language === 'python' && isPyodideLoading)}
-            />
+            <OutputPanel output={output} error={error} isRunning={isBusy} />
           </div>
         </div>
 
-        {/* Huddle Panel - shown on the right (desktop) or bottom (mobile) */}
-        {isHuddleOpen && sessionId && (
+        {isHuddleOpen && (
           <div className="w-full lg:w-80 xl:w-96 h-64 lg:h-full shrink-0">
-            <HuddlePanel 
-              sessionId={sessionId} 
-              onClose={() => setIsHuddleOpen(false)} 
-            />
+            <HuddlePanel sessionId={sessionId} onClose={() => setIsHuddleOpen(false)} />
           </div>
         )}
       </div>

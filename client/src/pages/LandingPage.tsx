@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Code2, Users, Zap, Globe, Sparkles } from 'lucide-react';
+import { Code2, Users, Zap, Globe, Sparkles, Loader2 } from 'lucide-react';
 import { TopBar } from '@/components/TopBar';
 import { generateSessionId } from '@/lib/sessionUtils';
+import { createSession } from '@/lib/api';
 
 /**
  * Landing page component.
@@ -13,10 +15,24 @@ import { generateSessionId } from '@/lib/sessionUtils';
  */
 export function LandingPage() {
   const navigate = useNavigate();
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleCreateSession = () => {
-    const sessionId = generateSessionId();
-    navigate(`/session/${sessionId}`);
+  const handleCreateSession = async () => {
+    setIsCreating(true);
+    setError(null);
+
+    try {
+      const session = await createSession();
+      navigate(`/session/${session.sessionId}`);
+    } catch {
+      // Offline or backend unavailable: fall back to local ID
+      const sessionId = generateSessionId();
+      setError('Backend is unavailable; starting a local-only session.');
+      navigate(`/session/${sessionId}`);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -43,11 +59,26 @@ export function LandingPage() {
           {/* CTA Button */}
           <button
             onClick={handleCreateSession}
+            disabled={isCreating}
             className="inline-flex items-center gap-2 px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg shadow-lg hover:shadow-glow transition-all duration-200 text-lg"
           >
-            <Zap className="w-5 h-5" />
-            Start a CodePair session
+            {isCreating ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Creating session...
+              </>
+            ) : (
+              <>
+                <Zap className="w-5 h-5" />
+                Start a CodePair session
+              </>
+            )}
           </button>
+          {error && (
+            <p className="mt-3 text-sm text-amber-600" role="alert">
+              {error}
+            </p>
+          )}
 
           {/* Features Grid */}
           <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6">

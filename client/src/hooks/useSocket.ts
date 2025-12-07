@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
+import type { Language } from "@/components/LanguageSelector";
 
-const SOCKET_SERVER_URL = "http://localhost:4000";
+const SOCKET_SERVER_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
 
 interface UseSocketOptions {
   sessionId: string;
-  onCodeUpdate?: (code: string) => void;
+  onCodeUpdate?: (code: string, language?: Language) => void;
 }
 
 interface UseSocketReturn {
   isConnected: boolean;
   connectedUsers: number;
-  emitCodeUpdate: (code: string) => void;
+  emitCodeUpdate: (code: string, language?: Language) => void;
   error: string | null;
 }
 
@@ -31,9 +32,9 @@ export function useSocket({
   const [error, setError] = useState<string | null>(null);
 
   const emitCodeUpdate = useCallback(
-    (code: string) => {
+    (code: string, language?: Language) => {
       if (socketRef.current?.connected && sessionId) {
-        socketRef.current.emit("code:update", { sessionId, code });
+        socketRef.current.emit("code:update", { sessionId, code, language });
       }
     },
     [sessionId]
@@ -70,8 +71,8 @@ export function useSocket({
       setIsConnected(false);
     });
 
-    socket.on("code:update", (data: { code: string }) => {
-      if (data?.code && onCodeUpdate) onCodeUpdate(data.code);
+    socket.on("code:update", (data: { code: string; language?: Language }) => {
+      if (data?.code && onCodeUpdate) onCodeUpdate(data.code, data.language);
     });
 
     return () => {
