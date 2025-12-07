@@ -82,7 +82,7 @@ export function SessionPage() {
     setError(newError);
   }, []);
 
-  const { isConnected, emitCodeUpdate, emitCodeOutput, emitCursorUpdate, remoteCursors } = useSocket({
+  const { isConnected, emitCodeUpdate, emitCodeOutput, emitCursorUpdate, remoteCursors, socket } = useSocket({
     sessionId: sessionId || '',
     onCodeUpdate: handleCodeUpdateFromSocket,
     onCodeOutput: handleCodeOutputFromSocket,
@@ -314,7 +314,7 @@ export function SessionPage() {
 
         {isHuddleOpen && (
           <div className="w-full lg:w-80 xl:w-96 h-64 lg:h-full shrink-0">
-            <HuddlePanel sessionId={sessionId} onClose={() => setIsHuddleOpen(false)} />
+            <HuddlePanel sessionId={sessionId} socket={socket} onClose={() => setIsHuddleOpen(false)} />
           </div>
         )}
       </div>

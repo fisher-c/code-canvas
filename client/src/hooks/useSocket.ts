@@ -41,6 +41,7 @@ interface UseSocketReturn {
   emitCursorUpdate: (cursor: CursorPosition) => void;
   remoteCursors: Record<string, CursorPosition>;
   error: string | null;
+  socket: Socket | null;
 }
 
 /**
@@ -54,7 +55,8 @@ export function useSocket({
   onCodeUpdate,
   onCodeOutput,
 }: UseSocketOptions): UseSocketReturn {
-  const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null); // Keep ref for callbacks if needed, or just use state
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState(1); // always count self
   const [error, setError] = useState<string | null>(null);
@@ -87,10 +89,19 @@ export function useSocket({
     [sessionId]
   );
 
+  // Use refs for callbacks to avoid re-connecting socket when they change
+  const onCodeUpdateRef = useRef(onCodeUpdate);
+  const onCodeOutputRef = useRef(onCodeOutput);
+
+  useEffect(() => {
+    onCodeUpdateRef.current = onCodeUpdate;
+    onCodeOutputRef.current = onCodeOutput;
+  }, [onCodeUpdate, onCodeOutput]);
+
   useEffect(() => {
     if (!sessionId) return;
 
-    const socket = io(SOCKET_SERVER_URL, {
+    const newSocket = io(SOCKET_SERVER_URL, {
       transports: ["websocket", "polling"],
       timeout: 5000,
       reconnectionAttempts: 3,
@@ -99,35 +110,40 @@ export function useSocket({
       query: { sessionId },
     });
 
-    socketRef.current = socket;
+    setSocket(newSocket);
+    socketRef.current = newSocket;
 
-    socket.on("connect", () => {
+    newSocket.on("connect", () => {
       setIsConnected(true);
       setError(null);
       setConnectedUsers(1);
-      socket.emit("join", { sessionId });
+      newSocket.emit("join", { sessionId });
     });
 
-    socket.on("disconnect", () => {
+    newSocket.on("disconnect", () => {
       setIsConnected(false);
       setConnectedUsers(1);
     });
 
-    socket.on("connect_error", (err) => {
+    newSocket.on("connect_error", (err) => {
       console.log("Socket connection error:", err.message);
       setError("Unable to reach collaboration server (offline mode).");
       setIsConnected(false);
     });
 
-    socket.on("code:update", (data: { code: string; language?: Language }) => {
-      if (data?.code && onCodeUpdate) onCodeUpdate(data.code, data.language);
+    newSocket.on("code:update", (data: { code: string; language?: Language }) => {
+      if (data?.code && onCodeUpdateRef.current) {
+        onCodeUpdateRef.current(data.code, data.language);
+      }
     });
 
-    socket.on("code:output", (data: { output: string; error: string | null }) => {
-      if (onCodeOutput) onCodeOutput(data.output, data.error);
+    newSocket.on("code:output", (data: { output: string; error: string | null }) => {
+      if (onCodeOutputRef.current) {
+        onCodeOutputRef.current(data.output, data.error);
+      }
     });
 
-    socket.on("cursor:update", (data: { cursor: CursorPosition }) => {
+    newSocket.on("cursor:update", (data: { cursor: CursorPosition }) => {
       if (data?.cursor?.participantId) {
         setRemoteCursors((prev) => ({
           ...prev,
@@ -137,15 +153,16 @@ export function useSocket({
     });
 
     return () => {
-      socket.off("connect");
-      socket.off("disconnect");
-      socket.off("connect_error");
-      socket.off("code:update");
-      socket.off("code:output");
-      socket.off("cursor:update");
-      socket.disconnect();
+      newSocket.off("connect");
+      newSocket.off("disconnect");
+      newSocket.off("connect_error");
+      newSocket.off("code:update");
+      newSocket.off("code:output");
+      newSocket.off("cursor:update");
+      newSocket.disconnect();
+      setSocket(null);
     };
-  }, [sessionId, onCodeUpdate, onCodeOutput]);
+  }, [sessionId]); // Only re-connect if sessionId changes
 
   return {
     isConnected,
@@ -155,5 +172,6 @@ export function useSocket({
     emitCursorUpdate,
     remoteCursors,
     error,
+    socket,
   };
 }

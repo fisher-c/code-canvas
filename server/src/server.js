@@ -161,6 +161,21 @@ io.on("connection", (socket) => {
     if (!sessionId) return;
     socket.to(sessionId).emit("cursor:update", { cursor });
   });
+
+  // WebRTC Signaling
+  socket.on("signal", ({ sessionId, signal, to }) => {
+    if (!sessionId) return;
+    // Send signal to specific peer
+    io.to(to).emit("signal", { signal, from: socket.id });
+  });
+
+  socket.on("join-room", ({ sessionId }) => {
+    if (!sessionId) return;
+
+    // Notify others in the room that a new peer joined
+    // They will initiate the WebRTC connection
+    socket.to(sessionId).emit("peer-joined", { peerId: socket.id });
+  });
 });
 
 server.listen(PORT, () => {
