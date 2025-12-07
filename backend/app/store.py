@@ -1,10 +1,10 @@
 import random
 import string
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -83,6 +83,17 @@ class DBStore:
         if not session_model:
             raise KeyError("session not found")
         return session_model
+
+    async def prune_stale_participants(self, session_id: str, ttl_seconds: int) -> None:
+        if ttl_seconds <= 0:
+            return
+        cutoff = self._now() - timedelta(seconds=ttl_seconds)
+        stmt = delete(Participant).where(
+            Participant.session_id == session_id,
+            Participant.last_seen_at < cutoff,
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     async def update_code(self, session_id: str, language: Language, content: str, author: Optional[str]) -> CodeDocument:
         session_model = await self.get_session(session_id)

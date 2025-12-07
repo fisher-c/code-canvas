@@ -51,6 +51,7 @@ export function SessionPage() {
     sql: null,
   });
   const mountedRef = useRef(true);
+  const storageKey = sessionId ? `codepair-participant-${sessionId}` : null;
 
   const currentCode = codeByLanguage[language];
 
@@ -111,11 +112,22 @@ export function SessionPage() {
         });
         setCodeByLanguage(hydrated);
 
+        // If we have a stored participant, clean it up first to avoid double-counting
+        const existingParticipantId = storageKey ? sessionStorage.getItem(storageKey) : null;
+        if (existingParticipantId) {
+          await leaveSession(session.sessionId, existingParticipantId, { keepalive: true }).catch(() => {
+            /* best-effort cleanup */
+          });
+        }
+
         const presence = await joinSession(session.sessionId, { displayName: 'Guest' });
         if (canceled) return;
 
         setPresenceCount(presence.activeParticipants || 1);
         setParticipantId(presence.participantId ?? null);
+        if (storageKey && presence.participantId) {
+          sessionStorage.setItem(storageKey, presence.participantId);
+        }
       } catch {
         if (canceled) return;
         setSessionError('Unable to reach the backend. You can continue offline.');
@@ -134,7 +146,7 @@ export function SessionPage() {
   useEffect(() => {
     if (!sessionId || !participantId) return;
     return () => {
-      void leaveSession(sessionId, participantId).catch(() => {
+      void leaveSession(sessionId, participantId, { keepalive: true }).catch(() => {
         /* non-blocking cleanup */
       });
     };

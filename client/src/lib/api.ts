@@ -109,9 +109,14 @@ export async function joinSession(
   });
 }
 
-export async function leaveSession(sessionId: string, participantId: string): Promise<void> {
+export async function leaveSession(
+  sessionId: string,
+  participantId: string,
+  options: { keepalive?: boolean } = {}
+): Promise<void> {
   await apiFetch<void>(`/sessions/${sessionId}/participants/${participantId}`, {
     method: "DELETE",
+    keepalive: options.keepalive ?? false,
   });
 }
 

@@ -1,5 +1,6 @@
 from typing import Dict, Optional
 
+import os
 import socketio
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,16 @@ from .store import DBStore
 
 async def get_store(session: AsyncSession = Depends(get_session)) -> DBStore:
     return DBStore(session)
+
+
+PARTICIPANT_TTL_DEFAULT = 1800  # 30 minutes
+
+
+def participant_ttl_seconds() -> int:
+    try:
+        return int(os.getenv("PARTICIPANT_TTL_SECONDS", str(PARTICIPANT_TTL_DEFAULT)))
+    except ValueError:
+        return PARTICIPANT_TTL_DEFAULT
 
 
 # Socket.IO server for live collaboration
@@ -80,6 +91,7 @@ async def get_session(
     store: DBStore = Depends(get_store),
 ) -> Session:
     try:
+        await store.prune_stale_participants(sessionId, participant_ttl_seconds())
         session_model = await store.get_session(sessionId)
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
@@ -143,6 +155,7 @@ async def join_session(
 ) -> SessionPresence:
     payload = payload or JoinSessionRequest()
     try:
+        await store.prune_stale_participants(sessionId, participant_ttl_seconds())
         participant = await store.register_participant(session_id=sessionId, display_name=payload.displayName)
         session_model = await store.get_session(sessionId)
     except KeyError:
@@ -169,6 +182,7 @@ async def leave_session(
 ) -> SessionPresence:
     try:
         await store.remove_participant(session_id=sessionId, participant_id=participantId)
+        await store.prune_stale_participants(sessionId, participant_ttl_seconds())
         session_model = await store.get_session(sessionId)
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
