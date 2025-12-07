@@ -107,7 +107,7 @@ export function CodeEditor({
   const cursorWidgetsRef = useRef<Map<string, any>>(new Map());
 
   useEffect(() => {
-    if (!editorRef.current || !remoteCursors) return;
+    if (!editorRef.current || !decorationsRef.current || !remoteCursors) return;
     const editor = editorRef.current;
     const widgets = cursorWidgetsRef.current;
 
@@ -122,7 +122,61 @@ export function CodeEditor({
       '#5AC8FA', // Teal
     ];
 
-    // 1. Update or create widgets for active cursors
+    // 1. Handle Selections (Decorations)
+    const selectionDecorations = Object.entries(remoteCursors)
+      .filter(([_, cursor]) => cursor.selectionStart && cursor.selectionEnd)
+      .map(([id, cursor]) => {
+        const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const color = CURSOR_COLORS[hash % CURSOR_COLORS.length];
+
+        // Convert hex to rgba for selection background (20% opacity)
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        const rgba = `rgba(${r}, ${g}, ${b}, 0.2)`;
+
+        return {
+          range: {
+            startLineNumber: cursor.selectionStart!.line,
+            startColumn: cursor.selectionStart!.column,
+            endLineNumber: cursor.selectionEnd!.line,
+            endColumn: cursor.selectionEnd!.column,
+          },
+          options: {
+            className: `remote-selection-${id}`,
+            stickiness: 1,
+          },
+        };
+      });
+
+    // Inject CSS for selections
+    const styleId = 'remote-selection-styles';
+    let styleElement = document.getElementById(styleId) as HTMLStyleElement;
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = styleId;
+      document.head.appendChild(styleElement);
+    }
+
+    const cssRules = Object.entries(remoteCursors).map(([id, _]) => {
+      const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const color = CURSOR_COLORS[hash % CURSOR_COLORS.length];
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+
+      return `
+        .remote-selection-${id} {
+          background-color: rgba(${r}, ${g}, ${b}, 0.2);
+        }
+      `;
+    }).join('\n');
+
+    styleElement.textContent = cssRules;
+    decorationsRef.current.set(selectionDecorations);
+
+    // 2. Handle Cursors (ContentWidgets)
+    // Update or create widgets for active cursors
     Object.entries(remoteCursors).forEach(([id, cursor]) => {
       let widget = widgets.get(id);
 

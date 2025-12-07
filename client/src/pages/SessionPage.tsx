@@ -6,7 +6,7 @@ import { LanguageSelector, type Language } from '@/components/LanguageSelector';
 import { CodeEditor, DEFAULT_CODE } from '@/components/CodeEditor';
 import { OutputPanel } from '@/components/OutputPanel';
 import { HuddlePanel } from '@/components/HuddlePanel';
-import { useSocket } from '@/hooks/useSocket';
+import { useSocket, type CursorPosition } from '@/hooks/useSocket';
 import { usePyodide } from '@/hooks/usePyodide';
 import { executeJavaScript } from '@/lib/codeExecution';
 import {
@@ -44,6 +44,9 @@ export function SessionPage() {
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isHuddleOpen, setIsHuddleOpen] = useState(false);
+
+  // Use a ref to ensure we always have the latest participantId in callbacks
+  const participantIdRef = useRef<string | null>(null);
 
   const saveTimers = useRef<Record<Language, number | null>>({
     javascript: null,
@@ -136,7 +139,9 @@ export function SessionPage() {
         if (canceled) return;
 
         setPresenceCount(presence.activeParticipants || 1);
-        setParticipantId(presence.participantId ?? null);
+        const pid = presence.participantId ?? null;
+        setParticipantId(pid);
+        participantIdRef.current = pid;
         if (storageKey && presence.participantId) {
           sessionStorage.setItem(storageKey, presence.participantId);
         }
@@ -235,6 +240,13 @@ export function SessionPage() {
     }
   };
 
+  const handleCursorChange = useCallback((cursor: CursorPosition) => {
+    const pid = participantIdRef.current;
+    if (pid) {
+      emitCursorUpdate({ ...cursor, participantId: pid });
+    }
+  }, [emitCursorUpdate]);
+
   const handleHuddleToggle = () => {
     setIsHuddleOpen((prev) => !prev);
   };
@@ -292,11 +304,7 @@ export function SessionPage() {
               value={currentCode}
               onChange={handleCodeChange}
               language={language}
-              onCursorChange={(cursor) => {
-                if (participantId) {
-                  emitCursorUpdate({ ...cursor, participantId });
-                }
-              }}
+              onCursorChange={handleCursorChange}
               remoteCursors={remoteCursors}
             />
 
