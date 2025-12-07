@@ -1,12 +1,26 @@
+import asyncio
+import os
+from pathlib import Path
+
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app, db
+# Ensure a test-specific database is used before importing the app
+TEST_DB_PATH = Path("test_codepair.db")
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
+
+from app.database import Base, engine  # noqa: E402
+from app.main import app  # noqa: E402
 
 
-@pytest.fixture(autouse=True)
-def reset_db():
-    db.sessions.clear()
+@pytest_asyncio.fixture(autouse=True, scope="function")
+async def reset_db():
+    # Drop and recreate tables to isolate each test
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+    yield
 
 
 def client():
@@ -34,8 +48,8 @@ async def test_update_code_and_snapshot():
     async with client() as http:
         await http.post("/sessions", json={"sessionId": "room01"})
         update_resp = await http.put(
-            "/sessions/room01/code",
-            json={"language": "python", "content": "print('hi')", "author": "tester"},
+          "/sessions/room01/code",
+          json={"language": "python", "content": "print('hi')", "author": "tester"},
         )
         assert update_resp.status_code == 200
         updated = update_resp.json()

@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "FastAPI backend for the CodePair collaborative editor"
 requires-python = ">=3.9"
 dependencies = [
+    "aiosqlite>=0.21.0",
+    "asyncpg>=0.31.0",
     "fastapi>=0.124.0",
     "python-socketio>=5.15.0",
+    "sqlalchemy[asyncio]>=2.0.44",
     "uvicorn>=0.38.0",
 ]
 
