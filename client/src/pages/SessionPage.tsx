@@ -74,15 +74,27 @@ export function SessionPage() {
     [language, sessionId]
   );
 
-  const { isConnected, emitCodeUpdate } = useSocket({
+  const handleCodeOutputFromSocket = useCallback((newOutput: string, newError: string | null) => {
+    setOutput(newOutput);
+    setError(newError);
+  }, []);
+
+  const { isConnected, emitCodeUpdate, emitCodeOutput, emitCursorUpdate, remoteCursors } = useSocket({
     sessionId: sessionId || '',
     onCodeUpdate: handleCodeUpdateFromSocket,
+    onCodeOutput: handleCodeOutputFromSocket,
   });
 
   const { runPython, isLoading: isPyodideLoading } = usePyodide();
 
   useEffect(() => {
     if (!sessionId) return;
+
+    // Restore last selected language for this session (if any)
+    const savedLang = sessionStorage.getItem(`codepair-lang-${sessionId}`) as Language | null;
+    if (savedLang) {
+      setLanguage(savedLang);
+    }
 
     let canceled = false;
     const bootstrap = async () => {
@@ -141,7 +153,7 @@ export function SessionPage() {
     return () => {
       canceled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, storageKey]);
 
   useEffect(() => {
     if (!sessionId || !participantId) return;
@@ -186,6 +198,9 @@ export function SessionPage() {
 
   const handleLanguageChange = (newLanguage: Language) => {
     setLanguage(newLanguage);
+    if (sessionId) {
+      sessionStorage.setItem(`codepair-lang-${sessionId}`, newLanguage);
+    }
     setOutput('');
     setError(null);
   };
@@ -195,23 +210,28 @@ export function SessionPage() {
     setOutput('');
     setError(null);
 
+    let runOutput = '';
+    let runError: string | null = null;
+
     try {
       if (language === 'javascript') {
         const result = executeJavaScript(currentCode);
-        setOutput(result.output);
-        setError(result.error);
+        runOutput = result.output;
+        runError = result.error;
       } else if (language === 'python') {
         const result = await runPython(currentCode);
-        setOutput(result.output);
-        setError(result.error);
+        runOutput = result.output;
+        runError = result.error;
       } else if (language === 'sql') {
-        setOutput('');
-        setError('SQL execution is not supported yet. Syntax highlighting only.');
+        runError = 'SQL execution is not supported yet. Syntax highlighting only.';
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      runError = err instanceof Error ? err.message : 'An error occurred';
     } finally {
+      setOutput(runOutput);
+      setError(runError);
       setIsRunning(false);
+      emitCodeOutput(runOutput, runError);
     }
   };
 
@@ -268,7 +288,17 @@ export function SessionPage() {
           </div>
 
           <div className="flex-1 grid grid-rows-[1fr_200px] gap-4 min-h-0">
-            <CodeEditor value={currentCode} onChange={handleCodeChange} language={language} />
+            <CodeEditor
+              value={currentCode}
+              onChange={handleCodeChange}
+              language={language}
+              onCursorChange={(cursor) => {
+                if (participantId) {
+                  emitCursorUpdate({ ...cursor, participantId });
+                }
+              }}
+              remoteCursors={remoteCursors}
+            />
 
             <OutputPanel output={output} error={error} isRunning={isBusy} />
           </div>

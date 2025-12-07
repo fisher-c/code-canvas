@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: codepair
+      POSTGRES_PASSWORD: codepair
+      POSTGRES_DB: codepair
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codepair -d codepair"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://codepair:codepair@db:5432/codepair
+      PARTICIPANT_TTL_SECONDS: 1800
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "4000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 4000
+
+  frontend:
+    build:
+      context: ./client
+      args:
+        VITE_API_BASE_URL: /api
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
