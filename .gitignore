@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+backend/*.db
+backend/tests_integration/*.db
