@@ -1,10 +1,14 @@
-import Editor from '@monaco-editor/react';
+import { useEffect, useRef } from 'react';
+import Editor, { OnMount } from '@monaco-editor/react';
 import type { Language } from './LanguageSelector';
+import type { CursorPosition } from '@/hooks/useSocket';
 
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
   language: Language;
+  onCursorChange?: (cursor: CursorPosition) => void;
+  remoteCursors?: Record<string, CursorPosition>;
 }
 
 // Map our language values to Monaco language identifiers
@@ -57,14 +61,131 @@ LIMIT 10;
  * - Modern dark/light theme based on system preference
  * - Minimap, line numbers, and other IDE features
  * - Controlled component with value and onChange props
+ * - Real-time cursor synchronization
  * 
  * The editor automatically adjusts its language mode when
  * the language prop changes.
  */
-export function CodeEditor({ value, onChange, language }: CodeEditorProps) {
+export function CodeEditor({
+  value,
+  onChange,
+  language,
+  onCursorChange,
+  remoteCursors
+}: CodeEditorProps) {
+  const editorRef = useRef<any>(null);
+  const decorationsRef = useRef<any>(null);
+
   const handleChange = (newValue: string | undefined) => {
     onChange(newValue ?? '');
   };
+
+  const handleEditorDidMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    decorationsRef.current = editor.createDecorationsCollection([]);
+
+    editor.onDidChangeCursorPosition((e) => {
+      if (onCursorChange) {
+        const selection = editor.getSelection();
+        onCursorChange({
+          line: e.position.lineNumber,
+          column: e.position.column,
+          selectionStart: selection ? {
+            line: selection.startLineNumber,
+            column: selection.startColumn,
+          } : undefined,
+          selectionEnd: selection ? {
+            line: selection.endLineNumber,
+            column: selection.endColumn,
+          } : undefined,
+        });
+      }
+    });
+  };
+
+  // Manage remote cursor widgets
+  const cursorWidgetsRef = useRef<Map<string, any>>(new Map());
+
+  useEffect(() => {
+    if (!editorRef.current || !remoteCursors) return;
+    const editor = editorRef.current;
+    const widgets = cursorWidgetsRef.current;
+
+    const CURSOR_COLORS = [
+      '#FF3B30', // Red
+      '#4CD964', // Green
+      '#3B82F6', // Brighter Blue
+      '#FFCC00', // Yellow
+      '#8B5CF6', // Brighter Purple
+      '#FF9500', // Orange
+      '#FF2D55', // Pink
+      '#5AC8FA', // Teal
+    ];
+
+    // 1. Update or create widgets for active cursors
+    Object.entries(remoteCursors).forEach(([id, cursor]) => {
+      let widget = widgets.get(id);
+
+      if (!widget) {
+        // Create new widget
+        const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const color = CURSOR_COLORS[hash % CURSOR_COLORS.length];
+
+        const contentNode = document.createElement('div');
+        contentNode.className = `remote-cursor-widget-${id}`;
+        contentNode.style.borderLeft = `2px solid ${color}`;
+        contentNode.style.height = '20px'; // Approximate line height
+        contentNode.style.position = 'relative';
+        contentNode.style.pointerEvents = 'none'; // Don't block clicks
+
+        const labelNode = document.createElement('div');
+        labelNode.textContent = 'Guest';
+        labelNode.style.position = 'absolute';
+        labelNode.style.top = '-1.4em';
+        labelNode.style.left = '-2px';
+        labelNode.style.backgroundColor = color;
+        labelNode.style.color = 'white';
+        labelNode.style.fontSize = '10px';
+        labelNode.style.fontWeight = 'bold';
+        labelNode.style.padding = '1px 4px';
+        labelNode.style.borderRadius = '4px';
+        labelNode.style.whiteSpace = 'nowrap';
+        labelNode.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
+
+        contentNode.appendChild(labelNode);
+
+        widget = {
+          getId: () => `cursor.widget.${id}`,
+          getDomNode: () => contentNode,
+          getPosition: () => ({
+            position: { lineNumber: cursor.line, column: cursor.column },
+            preference: [0], // ContentWidgetPositionPreference.EXACT
+          }),
+        };
+
+        editor.addContentWidget(widget);
+        widgets.set(id, widget);
+      } else {
+        // Update existing widget position
+        // We overwrite the getPosition method to return the new position
+        widget.getPosition = () => ({
+          position: { lineNumber: cursor.line, column: cursor.column },
+          preference: [0],
+        });
+        editor.layoutContentWidget(widget);
+      }
+    });
+
+    // 2. Remove widgets for disconnected users
+    const activeIds = new Set(Object.keys(remoteCursors));
+    widgets.forEach((widget, id) => {
+      if (!activeIds.has(id)) {
+        editor.removeContentWidget(widget);
+        widgets.delete(id);
+      }
+    });
+
+  }, [remoteCursors]);
 
   return (
     <div className="h-full w-full overflow-hidden rounded-lg border border-editor-border bg-editor">
@@ -73,6 +194,7 @@ export function CodeEditor({ value, onChange, language }: CodeEditorProps) {
         language={MONACO_LANGUAGE_MAP[language]}
         value={value}
         onChange={handleChange}
+        onMount={handleEditorDidMount}
         theme="vs-dark"
         options={{
           fontSize: 14,
