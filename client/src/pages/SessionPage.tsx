@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Play, Loader2 } from 'lucide-react';
+import { Play, Loader2, PenTool } from 'lucide-react';
 import { TopBar } from '@/components/TopBar';
 import { LanguageSelector, type Language } from '@/components/LanguageSelector';
 import { CodeEditor, DEFAULT_CODE } from '@/components/CodeEditor';
 import { OutputPanel } from '@/components/OutputPanel';
 import { HuddlePanel } from '@/components/HuddlePanel';
-import { useSocket, type CursorPosition } from '@/hooks/useSocket';
+import { Whiteboard } from '@/components/Whiteboard';
+import { useSocket, type CursorPosition, type DrawEvent } from '@/hooks/useSocket';
 import { usePyodide } from '@/hooks/usePyodide';
 import { executeJavaScript } from '@/lib/codeExecution';
 import {
@@ -44,6 +45,8 @@ export function SessionPage() {
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isHuddleOpen, setIsHuddleOpen] = useState(false);
+  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
+  const [incomingDrawEvents, setIncomingDrawEvents] = useState<DrawEvent[]>([]);
 
   // Use a ref to ensure we always have the latest participantId in callbacks
   const participantIdRef = useRef<string | null>(null);
@@ -82,10 +85,20 @@ export function SessionPage() {
     setError(newError);
   }, []);
 
-  const { isConnected, emitCodeUpdate, emitCodeOutput, emitCursorUpdate, remoteCursors, socket } = useSocket({
+  const handleDrawEvent = useCallback((event: DrawEvent) => {
+    setIncomingDrawEvents(prev => [...prev, event]);
+  }, []);
+
+  const handleClearEvent = useCallback(() => {
+    setIncomingDrawEvents([]);
+  }, []);
+
+  const { isConnected, emitCodeUpdate, emitCodeOutput, emitCursorUpdate, emitDraw, emitClear, remoteCursors, socket } = useSocket({
     sessionId: sessionId || '',
     onCodeUpdate: handleCodeUpdateFromSocket,
     onCodeOutput: handleCodeOutputFromSocket,
+    onDraw: handleDrawEvent,
+    onClear: handleClearEvent,
   });
 
   const { runPython, isLoading: isPyodideLoading } = usePyodide();
@@ -260,13 +273,31 @@ export function SessionPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="h-screen flex flex-col bg-background overflow-hidden relative">
       <TopBar
         sessionId={sessionId}
         isConnected={isConnected}
         connectedUsers={presenceCount}
         isHuddleOpen={isHuddleOpen}
         onHuddleToggle={handleHuddleToggle}
+      />
+
+      {/* Whiteboard Toggle Button */}
+      <button
+        onClick={() => setIsWhiteboardOpen(true)}
+        className="absolute bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition-transform hover:scale-105"
+        title="Open Whiteboard"
+      >
+        <PenTool className="w-5 h-5" />
+        <span className="font-medium">Whiteboard</span>
+      </button>
+
+      <Whiteboard
+        isOpen={isWhiteboardOpen}
+        onClose={() => setIsWhiteboardOpen(false)}
+        onDraw={emitDraw}
+        onClear={emitClear}
+        incomingEvents={incomingDrawEvents}
       />
 
       <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden">

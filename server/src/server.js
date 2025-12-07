@@ -176,6 +176,18 @@ io.on("connection", (socket) => {
     // They will initiate the WebRTC connection
     socket.to(sessionId).emit("peer-joined", { peerId: socket.id });
   });
+
+  // Whiteboard Signaling
+  const relayDrawing = (event, data) => {
+    const { sessionId } = data;
+    if (!sessionId) return;
+    socket.to(sessionId).emit(event, data);
+  };
+
+  socket.on("draw:start", (data) => relayDrawing("draw:start", data));
+  socket.on("draw:move", (data) => relayDrawing("draw:move", data));
+  socket.on("draw:end", (data) => relayDrawing("draw:end", data));
+  socket.on("draw:clear", (data) => relayDrawing("draw:clear", data));
 });
 
 server.listen(PORT, () => {

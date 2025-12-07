@@ -27,10 +27,20 @@ export interface CursorPosition {
   color?: string;
 }
 
+export interface DrawEvent {
+  x: number;
+  y: number;
+  color: string;
+  type: 'start' | 'move' | 'end';
+  participantId?: string;
+}
+
 interface UseSocketOptions {
   sessionId: string;
   onCodeUpdate?: (code: string, language?: Language) => void;
   onCodeOutput?: (output: string, error: string | null) => void;
+  onDraw?: (event: DrawEvent) => void;
+  onClear?: () => void;
 }
 
 interface UseSocketReturn {
@@ -39,6 +49,8 @@ interface UseSocketReturn {
   emitCodeUpdate: (code: string, language?: Language) => void;
   emitCodeOutput: (output: string, error: string | null) => void;
   emitCursorUpdate: (cursor: CursorPosition) => void;
+  emitDraw: (event: DrawEvent) => void;
+  emitClear: () => void;
   remoteCursors: Record<string, CursorPosition>;
   error: string | null;
   socket: Socket | null;
@@ -54,6 +66,8 @@ export function useSocket({
   sessionId,
   onCodeUpdate,
   onCodeOutput,
+  onDraw,
+  onClear,
 }: UseSocketOptions): UseSocketReturn {
   const [socket, setSocket] = useState<Socket | null>(null);
   const socketRef = useRef<Socket | null>(null); // Keep ref for callbacks if needed, or just use state
@@ -89,14 +103,33 @@ export function useSocket({
     [sessionId]
   );
 
+  const emitDraw = useCallback(
+    (event: DrawEvent) => {
+      if (socketRef.current?.connected && sessionId) {
+        socketRef.current.emit(`draw:${event.type}`, { sessionId, ...event });
+      }
+    },
+    [sessionId]
+  );
+
+  const emitClear = useCallback(() => {
+    if (socketRef.current?.connected && sessionId) {
+      socketRef.current.emit("draw:clear", { sessionId });
+    }
+  }, [sessionId]);
+
   // Use refs for callbacks to avoid re-connecting socket when they change
   const onCodeUpdateRef = useRef(onCodeUpdate);
   const onCodeOutputRef = useRef(onCodeOutput);
+  const onDrawRef = useRef(onDraw);
+  const onClearRef = useRef(onClear);
 
   useEffect(() => {
     onCodeUpdateRef.current = onCodeUpdate;
     onCodeOutputRef.current = onCodeOutput;
-  }, [onCodeUpdate, onCodeOutput]);
+    onDrawRef.current = onDraw;
+    onClearRef.current = onClear;
+  }, [onCodeUpdate, onCodeOutput, onDraw, onClear]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -152,6 +185,19 @@ export function useSocket({
       }
     });
 
+    const handleDraw = (type: 'start' | 'move' | 'end') => (data: any) => {
+      if (onDrawRef.current) {
+        onDrawRef.current({ ...data, type });
+      }
+    };
+
+    newSocket.on("draw:start", handleDraw('start'));
+    newSocket.on("draw:move", handleDraw('move'));
+    newSocket.on("draw:end", handleDraw('end'));
+    newSocket.on("draw:clear", () => {
+      if (onClearRef.current) onClearRef.current();
+    });
+
     return () => {
       newSocket.off("connect");
       newSocket.off("disconnect");
@@ -159,6 +205,10 @@ export function useSocket({
       newSocket.off("code:update");
       newSocket.off("code:output");
       newSocket.off("cursor:update");
+      newSocket.off("draw:start");
+      newSocket.off("draw:move");
+      newSocket.off("draw:end");
+      newSocket.off("draw:clear");
       newSocket.disconnect();
       setSocket(null);
     };
@@ -170,6 +220,8 @@ export function useSocket({
     emitCodeUpdate,
     emitCodeOutput,
     emitCursorUpdate,
+    emitDraw,
+    emitClear,
     remoteCursors,
     error,
     socket,
