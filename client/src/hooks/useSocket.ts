@@ -2,20 +2,21 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import type { Language } from "@/components/LanguageSelector";
 
-// Resolve the socket base URL. If VITE_API_BASE_URL is relative (e.g. "/api"),
-// fall back to window.origin so we hit the same host that serves the app.
+// Resolve the socket base URL
 const RAW_API_BASE = import.meta.env.VITE_API_BASE_URL;
-// Resolve socket base:
-// - if VITE_API_BASE_URL is absolute, use it
-// - if it is relative (e.g. "/api"), use the current origin
-// - otherwise fall back to localhost:4000 for dev split-ports
-let SOCKET_SERVER_URL = "http://localhost:4000";
-if (RAW_API_BASE) {
+
+let SOCKET_SERVER_URL = "http://localhost:4000"; // Default for local dev
+
+if (RAW_API_BASE && RAW_API_BASE.trim() !== '') {
+  // If VITE_API_BASE_URL is set and not empty
   if (RAW_API_BASE.startsWith("http")) {
-    SOCKET_SERVER_URL = RAW_API_BASE;
-  } else if (RAW_API_BASE.startsWith("/") && typeof window !== "undefined") {
-    SOCKET_SERVER_URL = window.location.origin;
+    SOCKET_SERVER_URL = RAW_API_BASE; // Absolute URL
+  } else if (RAW_API_BASE.startsWith("/")) {
+    SOCKET_SERVER_URL = typeof window !== "undefined" ? window.location.origin : "http://localhost:4000";
   }
+} else if (typeof window !== "undefined") {
+  // If VITE_API_BASE_URL is empty/unset and we're in browser, use same origin
+  SOCKET_SERVER_URL = window.location.origin;
 }
 
 export interface CursorPosition {

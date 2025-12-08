@@ -1,6 +1,9 @@
 import type { Language } from "@/components/LanguageSelector";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
+const RAW_API_BASE = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = RAW_API_BASE && RAW_API_BASE.trim() !== ''
+  ? RAW_API_BASE
+  : (typeof window !== 'undefined' ? window.location.origin : "http://localhost:4000");
 
 export class ApiError extends Error {
   status?: number;
