@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --config nodemon.json",
-    "start": "node src/server.js"
+    "start": "prisma db push && node src/server.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.10.2",

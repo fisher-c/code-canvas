@@ -7,7 +7,7 @@
     "dev:backend": "cd backend && PATH=\"$HOME/.local/bin:$PATH\" uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 4000",
     "dev:frontend": "cd client && npm run dev",
     "postinstall": "npm install --prefix client && npm install --prefix server",
-    "build": "npm install && npm install --prefix client && npm install --prefix server && VITE_API_BASE_URL='' npm run build --prefix client && rm -rf server/public && mv client/dist server/public",
+    "build": "npm install && npm install --prefix client && npm install --prefix server && npm run build --prefix client && rm -rf server/public && mv client/dist server/public",
     "start": "npm start --prefix server"
   },
   "devDependencies": {

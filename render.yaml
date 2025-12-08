@@ -3,8 +3,13 @@ services:
     name: codecanvas
     env: node
     plan: free
-    buildCommand: npm run build
-    startCommand: npm start
+    buildCommand: |
+      npm run build
+      cd server && npx prisma generate
+    startCommand: |
+      cd server
+      npx prisma db push
+      node src/server.js
     envVars:
       - key: NODE_VERSION
         value: 20.11.0

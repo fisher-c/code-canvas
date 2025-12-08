@@ -5,6 +5,9 @@ import type { Language } from "@/components/LanguageSelector";
 // Resolve the socket base URL
 const RAW_API_BASE = import.meta.env.VITE_API_BASE_URL;
 
+// Detect if we're in production (not running on Vite dev server)
+const isProduction = typeof window !== 'undefined' && !['5173', '5174', '5175'].includes(window.location.port);
+
 let SOCKET_SERVER_URL = "http://localhost:4000"; // Default for local dev
 
 if (RAW_API_BASE && RAW_API_BASE.trim() !== '') {
@@ -14,10 +17,11 @@ if (RAW_API_BASE && RAW_API_BASE.trim() !== '') {
   } else if (RAW_API_BASE.startsWith("/")) {
     SOCKET_SERVER_URL = typeof window !== "undefined" ? window.location.origin : "http://localhost:4000";
   }
-} else if (typeof window !== "undefined") {
-  // If VITE_API_BASE_URL is empty/unset and we're in browser, use same origin
-  SOCKET_SERVER_URL = window.location.origin;
+} else if (isProduction) {
+  // If in production and VITE_API_BASE_URL is unset, use same origin
+  SOCKET_SERVER_URL = typeof window !== "undefined" ? window.location.origin : "http://localhost:4000";
 }
+// Otherwise use the default localhost:4000 for local dev
 
 export interface CursorPosition {
   line: number;
