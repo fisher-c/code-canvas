@@ -9,6 +9,14 @@ services:
       - key: NODE_VERSION
         value: 20.11.0
       - key: DATABASE_URL
-        value: file:./dev.db
+        fromDatabase:
+          name: codecanvas-db
+          property: connectionString
       - key: CLIENT_ORIGIN
         generateValue: true
+
+databases:
+  - name: codecanvas-db
+    databaseName: codecanvas
+    user: codecanvas
+    plan: free
