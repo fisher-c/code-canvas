@@ -1,5 +1,6 @@
 import { Copy, Check, Users, Wifi, WifiOff, Code2, Video, VideoOff } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface TopBarProps {
   sessionId?: string;
@@ -37,15 +38,15 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
     <header className="h-14 border-b border-border bg-card px-4 flex items-center justify-between">
       {/* Left: Logo and App Name */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Code2 className="w-5 h-5 text-primary-foreground" />
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="text-lg font-semibold text-foreground">CodePair</span>
-            <span className="text-xs text-muted-foreground">Shared workspace for teams</span>
+            <span className="text-lg font-semibold text-foreground">CodeCanvas</span>
+            <span className="text-xs text-muted-foreground">Real-time Collaboration</span>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Center: Session ID (if in session) */}
@@ -55,7 +56,7 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
             <span className="text-sm text-muted-foreground">Workspace:</span>
             <code className="text-sm font-mono font-medium text-foreground">{sessionId}</code>
           </div>
-          
+
           <button
             onClick={handleCopyLink}
             className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-accent text-secondary-foreground rounded-md transition-colors text-sm"
@@ -82,11 +83,10 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
           {onHuddleToggle && (
             <button
               onClick={onHuddleToggle}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                isHuddleOpen
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary hover:bg-accent text-secondary-foreground'
-              }`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isHuddleOpen
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary hover:bg-accent text-secondary-foreground'
+                }`}
             >
               {isHuddleOpen ? (
                 <>

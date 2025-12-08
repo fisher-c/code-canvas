@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Code2, Users, Zap, Globe, Sparkles, Loader2 } from 'lucide-react';
+import { Code2, Users, Zap, Globe, Sparkles, Loader2, PenTool } from 'lucide-react';
 import { TopBar } from '@/components/TopBar';
 import { generateSessionId } from '@/lib/sessionUtils';
 import { createSession } from '@/lib/api';
@@ -38,7 +38,7 @@ export function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <TopBar />
-      
+
       <main className="flex-1 flex flex-col items-center justify-center px-4">
         <div className="max-w-2xl mx-auto text-center animate-fade-in">
           {/* Hero Icon */}
@@ -48,12 +48,12 @@ export function LandingPage() {
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4 tracking-tight">
-            CodePair: <span className="text-primary">A collaborative problem-solving space</span>
+            CodeCanvas
           </h1>
 
           {/* Subheadline */}
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Pair programming, study groups, mock interviews, tutoring sessions, or quick huddles—CodePair keeps everyone in sync with real-time editing, shared output, and a lightweight huddle panel.
+            Real-time collaboration suite for developers. Code, draw, and talk in one shared space.
           </p>
 
           {/* CTA Button */}
@@ -65,12 +65,12 @@ export function LandingPage() {
             {isCreating ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Creating session...
+                Creating workspace...
               </>
             ) : (
               <>
                 <Zap className="w-5 h-5" />
-                Start a CodePair session
+                Start a Session
               </>
             )}
           </button>
@@ -83,19 +83,19 @@ export function LandingPage() {
           {/* Features Grid */}
           <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6">
             <FeatureCard
-              icon={<Globe className="w-6 h-6" />}
-              title="Multi-language"
-              description="JavaScript, Python (Pyodide), and SQL highlighting for instant context switching."
-            />
-            <FeatureCard
-              icon={<Sparkles className="w-6 h-6" />}
-              title="Shared output"
-              description="Run JS in-browser, Python via Pyodide, and compare results together."
+              icon={<Code2 className="w-6 h-6" />}
+              title="Code"
+              description="Multi-language editor with real-time cursors and execution."
             />
             <FeatureCard
               icon={<Users className="w-6 h-6" />}
-              title="Real-time collab"
-              description="Live cursors and updates for pair programming, tutoring, and group study."
+              title="Connect"
+              description="Built-in video huddles for face-to-face collaboration."
+            />
+            <FeatureCard
+              icon={<PenTool className="w-6 h-6" />}
+              title="Create"
+              description="Interactive whiteboard for diagramming and brainstorming."
             />
           </div>
         </div>
