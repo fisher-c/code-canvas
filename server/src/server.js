@@ -2,6 +2,12 @@ import express from "express";
 import http from "http";
 import cors from "cors";
 import { Server } from "socket.io";
+import { PrismaClient } from "@prisma/client";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 4000;
 const ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
@@ -15,26 +21,31 @@ const io = new Server(server, {
   },
 });
 
+const prisma = new PrismaClient();
+
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-// In-memory storage
-const sessions = new Map();
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, "../public")));
 
 // Helper to get or create session
-const getOrCreateSession = (sessionId) => {
-  if (!sessions.has(sessionId)) {
-    sessions.set(sessionId, {
-      sessionId,
-      codeByLanguage: {
-        javascript: { content: "// Welcome to CodePair!\n// Write your JavaScript code here\n\nconsole.log('Hello World');", language: "javascript" },
-        python: { content: "# Welcome to CodePair!\n# Write your Python code here\n\nprint('Hello World')", language: "python" },
-        sql: { content: "-- Welcome to CodePair!\n-- Write your SQL code here\n\nSELECT * FROM users;", language: "sql" },
-      },
-      participants: new Map(),
-    });
-  }
-  return sessions.get(sessionId);
+const getOrCreateSession = async (sessionId) => {
+  const defaultCode = JSON.stringify({
+    javascript: { content: "// Welcome to CodeCanvas!\n// Write your JavaScript code here\n\nconsole.log('Hello World');", language: "javascript" },
+    python: { content: "# Welcome to CodeCanvas!\n# Write your Python code here\n\nprint('Hello World')", language: "python" },
+    sql: { content: "-- Welcome to CodeCanvas!\n-- Write your SQL code here\n\nSELECT * FROM users;", language: "sql" },
+  });
+
+  return await prisma.session.upsert({
+    where: { id: sessionId },
+    update: {},
+    create: {
+      id: sessionId,
+      code: defaultCode,
+    },
+    include: { participants: true },
+  });
 };
 
 app.get("/health", (_req, res) => {
@@ -42,92 +53,138 @@ app.get("/health", (_req, res) => {
 });
 
 // REST API Endpoints
-app.post("/sessions", (req, res) => {
+app.post("/sessions", async (req, res) => {
   const { sessionId } = req.body;
   const id = sessionId || Math.random().toString(36).substring(2, 15);
-  const session = getOrCreateSession(id);
-  res.status(201).json({
-    sessionId: session.sessionId,
-    activeParticipants: session.participants.size,
-    codeByLanguage: session.codeByLanguage,
-    participants: Array.from(session.participants.values()),
-  });
+
+  try {
+    const session = await getOrCreateSession(id);
+    const codeByLanguage = JSON.parse(session.code);
+
+    res.status(201).json({
+      sessionId: session.id,
+      activeParticipants: session.participants.length,
+      codeByLanguage,
+      participants: session.participants,
+    });
+  } catch (error) {
+    console.error("Error creating session:", error);
+    res.status(500).json({ detail: "Internal server error" });
+  }
 });
 
-app.get("/sessions/:sessionId", (req, res) => {
+app.get("/sessions/:sessionId", async (req, res) => {
   const { sessionId } = req.params;
-  const session = getOrCreateSession(sessionId); // Auto-create for simplicity in this prototype
-  res.json({
-    sessionId: session.sessionId,
-    activeParticipants: session.participants.size,
-    codeByLanguage: session.codeByLanguage,
-    participants: Array.from(session.participants.values()),
-  });
+  try {
+    const session = await getOrCreateSession(sessionId);
+    const codeByLanguage = JSON.parse(session.code);
+
+    res.json({
+      sessionId: session.id,
+      activeParticipants: session.participants.length,
+      codeByLanguage,
+      participants: session.participants,
+    });
+  } catch (error) {
+    console.error("Error fetching session:", error);
+    res.status(500).json({ detail: "Internal server error" });
+  }
 });
 
-app.get("/sessions/:sessionId/code", (req, res) => {
+app.get("/sessions/:sessionId/code", async (req, res) => {
   const { sessionId } = req.params;
-  const session = sessions.get(sessionId);
-  if (!session) return res.status(404).json({ detail: "Session not found" });
+  try {
+    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    if (!session) return res.status(404).json({ detail: "Session not found" });
 
-  res.json({
-    sessionId,
-    codeByLanguage: session.codeByLanguage,
-  });
+    const codeByLanguage = JSON.parse(session.code);
+    res.json({
+      sessionId,
+      codeByLanguage,
+    });
+  } catch (error) {
+    console.error("Error fetching code:", error);
+    res.status(500).json({ detail: "Internal server error" });
+  }
 });
 
-app.put("/sessions/:sessionId/code", (req, res) => {
+app.put("/sessions/:sessionId/code", async (req, res) => {
   const { sessionId } = req.params;
   const { language, content } = req.body;
-  const session = sessions.get(sessionId);
 
-  if (!session) return res.status(404).json({ detail: "Session not found" });
+  try {
+    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    if (!session) return res.status(404).json({ detail: "Session not found" });
 
-  if (session.codeByLanguage[language]) {
-    session.codeByLanguage[language].content = content;
-  } else {
-    session.codeByLanguage[language] = { content, language };
+    const codeByLanguage = JSON.parse(session.code);
+
+    if (codeByLanguage[language]) {
+      codeByLanguage[language].content = content;
+    } else {
+      codeByLanguage[language] = { content, language };
+    }
+
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: { code: JSON.stringify(codeByLanguage) },
+    });
+
+    res.json(codeByLanguage[language]);
+  } catch (error) {
+    console.error("Error updating code:", error);
+    res.status(500).json({ detail: "Internal server error" });
   }
-
-  res.json(session.codeByLanguage[language]);
 });
 
-app.post("/sessions/:sessionId/participants", (req, res) => {
+app.post("/sessions/:sessionId/participants", async (req, res) => {
   const { sessionId } = req.params;
   const { displayName } = req.body;
-  const session = getOrCreateSession(sessionId);
 
-  const participantId = Math.random().toString(36).substring(2, 15);
-  const participant = {
-    participantId,
-    displayName: displayName || "Guest",
-    joinedAt: new Date().toISOString(),
-    lastSeenAt: new Date().toISOString(),
-  };
+  try {
+    // Ensure session exists
+    await getOrCreateSession(sessionId);
 
-  session.participants.set(participantId, participant);
+    const participant = await prisma.participant.create({
+      data: {
+        sessionId,
+        displayName: displayName || "Guest",
+      },
+    });
 
-  res.json({
-    sessionId,
-    participantId,
-    activeParticipants: session.participants.size,
-    participants: Array.from(session.participants.values()),
-  });
+    const count = await prisma.participant.count({ where: { sessionId } });
+    const participants = await prisma.participant.findMany({ where: { sessionId } });
+
+    res.json({
+      sessionId,
+      participantId: participant.id,
+      activeParticipants: count,
+      participants,
+    });
+  } catch (error) {
+    console.error("Error adding participant:", error);
+    res.status(500).json({ detail: "Internal server error" });
+  }
 });
 
-app.delete("/sessions/:sessionId/participants/:participantId", (req, res) => {
+app.delete("/sessions/:sessionId/participants/:participantId", async (req, res) => {
   const { sessionId, participantId } = req.params;
-  const session = sessions.get(sessionId);
-  if (session) {
-    session.participants.delete(participantId);
+  try {
+    await prisma.participant.delete({
+      where: { id: participantId },
+    }).catch(() => { }); // Ignore if already deleted
+
+    const count = await prisma.participant.count({ where: { sessionId } });
+    const participants = await prisma.participant.findMany({ where: { sessionId } });
+
     res.json({
       sessionId,
       participantId: null,
-      activeParticipants: session.participants.size,
-      participants: Array.from(session.participants.values()),
+      activeParticipants: count,
+      participants,
     });
-  } else {
-    res.status(404).json({ detail: "Session not found" });
+  } catch (error) {
+    console.error("Error removing participant:", error);
+    res.status(500).json({ detail: "Internal server error" });
   }
 });
 
@@ -138,15 +195,26 @@ io.on("connection", (socket) => {
   };
 
   socket.on("join", ({ sessionId }) => joinRoom(sessionId));
-  socket.on("join:session", ({ sessionId }) => joinRoom(sessionId)); // compatibility
+  socket.on("join:session", ({ sessionId }) => joinRoom(sessionId));
 
-  socket.on("code:update", ({ sessionId, code, language }) => {
+  socket.on("code:update", async ({ sessionId, code, language }) => {
     if (!sessionId) return;
 
-    // Update in-memory store
-    const session = sessions.get(sessionId);
-    if (session && session.codeByLanguage[language]) {
-      session.codeByLanguage[language].content = code;
+    // Update DB asynchronously
+    try {
+      const session = await prisma.session.findUnique({ where: { id: sessionId } });
+      if (session) {
+        const codeByLanguage = JSON.parse(session.code);
+        if (codeByLanguage[language]) {
+          codeByLanguage[language].content = code;
+          await prisma.session.update({
+            where: { id: sessionId },
+            data: { code: JSON.stringify(codeByLanguage) },
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error saving code update:", err);
     }
 
     socket.to(sessionId).emit("code:update", { code, language });
@@ -165,15 +233,11 @@ io.on("connection", (socket) => {
   // WebRTC Signaling
   socket.on("signal", ({ sessionId, signal, to }) => {
     if (!sessionId) return;
-    // Send signal to specific peer
     io.to(to).emit("signal", { signal, from: socket.id });
   });
 
   socket.on("join-room", ({ sessionId }) => {
     if (!sessionId) return;
-
-    // Notify others in the room that a new peer joined
-    // They will initiate the WebRTC connection
     socket.to(sessionId).emit("peer-joined", { peerId: socket.id });
   });
 
@@ -188,6 +252,11 @@ io.on("connection", (socket) => {
   socket.on("draw:move", (data) => relayDrawing("draw:move", data));
   socket.on("draw:end", (data) => relayDrawing("draw:end", data));
   socket.on("draw:clear", (data) => relayDrawing("draw:clear", data));
+});
+
+// Catch-all route for React Router
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 server.listen(PORT, () => {

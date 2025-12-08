@@ -2,29 +2,30 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: codepair
-      POSTGRES_PASSWORD: codepair
-      POSTGRES_DB: codepair
+      POSTGRES_USER: codecanvas
+      POSTGRES_PASSWORD: codecanvas
+      POSTGRES_DB: codecanvas
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U codepair -d codepair"]
+      test: [ "CMD-SHELL", "pg_isready -U codecanvas -d codecanvas" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   backend:
     build:
-      context: ./backend
+      context: ./server
     environment:
-      DATABASE_URL: postgresql+asyncpg://codepair:codepair@db:5432/codepair
-      PARTICIPANT_TTL_SECONDS: 1800
+      DATABASE_URL: postgresql://codecanvas:codecanvas@db:5432/codecanvas
+      PORT: 4000
+      CLIENT_ORIGIN: http://localhost:8080
     depends_on:
       db:
         condition: service_healthy
     expose:
       - "4000"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 4000
+    command: sh -c "npx prisma migrate deploy && npm start"
 
   frontend:
     build:

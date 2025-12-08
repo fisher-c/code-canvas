@@ -9,8 +9,10 @@
     "start": "node src/server.js"
   },
   "dependencies": {
+    "@prisma/client": "^5.10.2",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "prisma": "^5.10.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
   },

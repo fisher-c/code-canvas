@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id        String   @id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Storing code as JSON string since SQLite doesn't support JSON type natively in all versions,
+  // and it simplifies the switch between SQLite/Postgres for this prototype.
+  // Structure: { javascript: { content: "...", language: "javascript" }, ... }
+  code      String   @default("{}") 
+  
+  participants Participant[]
+}
+
+model Participant {
+  id          String   @id @default(uuid())
+  sessionId   String
+  displayName String
+  joinedAt    DateTime @default(now())
+  lastSeenAt  DateTime @updatedAt
+  
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
