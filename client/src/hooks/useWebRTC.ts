@@ -138,7 +138,12 @@ export function useWebRTC({ sessionId, socket, isEnabled }: WebRTCProps) {
             createPeerConnection(peerId, true);
         };
 
-        const handleSignal = async ({ signal, from }: { signal: any, from: string }) => {
+        type SignalPayload =
+          | { type: 'offer'; sdp: RTCSessionDescriptionInit }
+          | { type: 'answer'; sdp: RTCSessionDescriptionInit }
+          | { type: 'candidate'; candidate: RTCIceCandidateInit };
+
+        const handleSignal = async ({ signal, from }: { signal: SignalPayload; from: string }) => {
             const pc = peersRef.current.get(from) || createPeerConnection(from, false);
 
             try {

@@ -7,6 +7,11 @@ vi.mock("@/hooks/useSocket", () => ({
   useSocket: () => ({
     isConnected: true,
     emitCodeUpdate: vi.fn(),
+    emitCodeOutput: vi.fn(),
+    emitCursorUpdate: vi.fn(),
+    emitDraw: vi.fn(),
+    emitClear: vi.fn(),
+    remoteCursors: {},
     error: null,
   }),
 }));
@@ -89,7 +94,7 @@ describe("Huddle panel flow", () => {
     await user.click(joinButton);
 
     expect(
-      screen.getByText(/team huddle placeholder/i)
+      screen.getByText(/connect with your team using voice and video/i)
     ).toBeInTheDocument();
   });
 });

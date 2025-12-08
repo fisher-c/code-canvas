@@ -5,13 +5,10 @@ Real-time collaboration suite for developers. Code together, draw diagrams, and 
 ## Demo
 
 <p>
-  <img src="docs/drawing_demo.png" alt="Whiteboard drawing demo" width="900">
+  <img src="docs/drawing_demo.png" alt="Whiteboard drawing demo" width="700">
 </p>
 <p>
-  <img src="docs/coding_huddle_demo.png" alt="Collaborative coding huddle" width="900">
-</p>
-<p>
-  <img src="docs/demo.gif" alt="Live collaboration flow" width="900">
+  <img src="docs/coding_huddle_demo.png" alt="Collaborative coding huddle" width="700">
 </p>
 
 ## Features

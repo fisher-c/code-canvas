@@ -190,7 +190,7 @@ export function useSocket({
       }
     });
 
-    const handleDraw = (type: 'start' | 'move' | 'end') => (data: any) => {
+    const handleDraw = (type: DrawEvent['type']) => (data: Omit<DrawEvent, 'type'>) => {
       if (onDrawRef.current) {
         onDrawRef.current({ ...data, type });
       }

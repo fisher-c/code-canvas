@@ -7,6 +7,11 @@ vi.mock("@/hooks/useSocket", () => ({
   useSocket: () => ({
     isConnected: false,
     emitCodeUpdate: vi.fn(),
+    emitCodeOutput: vi.fn(),
+    emitCursorUpdate: vi.fn(),
+    emitDraw: vi.fn(),
+    emitClear: vi.fn(),
+    remoteCursors: {},
     error: null,
   }),
 }));

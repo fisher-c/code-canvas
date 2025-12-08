@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
+import type { editor } from 'monaco-editor';
 import type { Language } from './LanguageSelector';
 import type { CursorPosition } from '@/hooks/useSocket';
 
@@ -73,8 +74,8 @@ export function CodeEditor({
   onCursorChange,
   remoteCursors
 }: CodeEditorProps) {
-  const editorRef = useRef<any>(null);
-  const decorationsRef = useRef<any>(null);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const decorationsRef = useRef<editor.IEditorDecorationsCollection | null>(null);
 
   const handleChange = (newValue: string | undefined) => {
     onChange(newValue ?? '');
@@ -104,7 +105,7 @@ export function CodeEditor({
   };
 
   // Manage remote cursor widgets
-  const cursorWidgetsRef = useRef<Map<string, any>>(new Map());
+  const cursorWidgetsRef = useRef<Map<string, editor.IContentWidget>>(new Map());
 
   useEffect(() => {
     if (!editorRef.current || !decorationsRef.current || !remoteCursors) return;
@@ -213,7 +214,7 @@ export function CodeEditor({
           getDomNode: () => contentNode,
           getPosition: () => ({
             position: { lineNumber: cursor.line, column: cursor.column },
-            preference: [0], // ContentWidgetPositionPreference.EXACT
+            preference: [0 as editor.ContentWidgetPositionPreference], // EXACT
           }),
         };
 
