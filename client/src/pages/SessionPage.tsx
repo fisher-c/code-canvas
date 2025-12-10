@@ -47,6 +47,7 @@ export function SessionPage() {
   const [isHuddleOpen, setIsHuddleOpen] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   const [incomingDrawEvents, setIncomingDrawEvents] = useState<DrawEvent[]>([]);
+  const [clearVersion, setClearVersion] = useState(0);
 
   // Use a ref to ensure we always have the latest participantId in callbacks
   const participantIdRef = useRef<string | null>(null);
@@ -91,6 +92,7 @@ export function SessionPage() {
 
   const handleClearEvent = useCallback(() => {
     setIncomingDrawEvents([]);
+    setClearVersion((prev) => prev + 1);
   }, []);
 
   const { isConnected, emitCodeUpdate, emitCodeOutput, emitCursorUpdate, emitDraw, emitClear, remoteCursors, socket } = useSocket({
@@ -100,6 +102,11 @@ export function SessionPage() {
     onDraw: handleDrawEvent,
     onClear: handleClearEvent,
   });
+
+  const handleClearRequest = useCallback(() => {
+    handleClearEvent(); // reset local history so old strokes can't replay
+    emitClear();
+  }, [emitClear, handleClearEvent]);
 
   const { runPython, isLoading: isPyodideLoading } = usePyodide();
 
@@ -296,8 +303,9 @@ export function SessionPage() {
         isOpen={isWhiteboardOpen}
         onClose={() => setIsWhiteboardOpen(false)}
         onDraw={emitDraw}
-        onClear={emitClear}
+        onClear={handleClearRequest}
         incomingEvents={incomingDrawEvents}
+        clearVersion={clearVersion}
       />
 
       <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden">

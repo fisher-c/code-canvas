@@ -8,23 +8,26 @@ interface WhiteboardProps {
     onDraw: (event: DrawEvent) => void;
     onClear: () => void;
     incomingEvents: DrawEvent[];
+    clearVersion?: number; // increments when a remote clear occurs
 }
 
-export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingEvents }: WhiteboardProps) {
+export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingEvents, clearVersion }: WhiteboardProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [color, setColor] = useState('#ef4444'); // Default red
     const lastPos = useRef<{ x: number; y: number } | null>(null);
+    const lastProcessedIndex = useRef(0); // track which incoming events we've already drawn
 
     // Handle incoming drawing events
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas || incomingEvents.length === 0) return;
+        if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        incomingEvents.forEach(event => {
+        const newEvents = incomingEvents.slice(lastProcessedIndex.current);
+        newEvents.forEach(event => {
             ctx.strokeStyle = event.color;
             ctx.lineWidth = 2;
             ctx.lineCap = 'round';
@@ -39,6 +42,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingEvents }:
                 ctx.closePath();
             }
         });
+        lastProcessedIndex.current = incomingEvents.length;
     }, [incomingEvents]);
 
     // Resize canvas
@@ -132,6 +136,17 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingEvents }:
             onClear();
         }
     };
+
+    // Clear canvas when a remote clear signal arrives
+    useEffect(() => {
+        if (clearVersion === undefined) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (canvas && ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        lastProcessedIndex.current = 0; // reset pointer so only post-clear events render
+    }, [clearVersion]);
 
     if (!isOpen) return null;
 
