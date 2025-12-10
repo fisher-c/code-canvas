@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 4000;
 const ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const app = express();
 const server = http.createServer(app);
@@ -48,6 +49,31 @@ const getOrCreateSession = async (sessionId) => {
   });
 };
 
+const touchSession = async (sessionId) => {
+  try {
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: { updatedAt: new Date() }, // bumps @updatedAt
+    });
+  } catch (err) {
+    console.error("Failed to update session activity:", err);
+  }
+};
+
+const cleanupStaleSessions = async () => {
+  const cutoff = new Date(Date.now() - SESSION_TTL_MS);
+  try {
+    const result = await prisma.session.deleteMany({
+      where: { updatedAt: { lt: cutoff } },
+    });
+    if (result.count > 0) {
+      console.log(`Cleaned up ${result.count} inactive sessions (older than 24h).`);
+    }
+  } catch (err) {
+    console.error("Failed to clean up stale sessions:", err);
+  }
+};
+
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
@@ -59,6 +85,7 @@ app.post("/sessions", async (req, res) => {
 
   try {
     const session = await getOrCreateSession(id);
+    await touchSession(id);
     const codeByLanguage = JSON.parse(session.code);
 
     res.status(201).json({
@@ -77,6 +104,7 @@ app.get("/sessions/:sessionId", async (req, res) => {
   const { sessionId } = req.params;
   try {
     const session = await getOrCreateSession(sessionId);
+    await touchSession(sessionId);
     const codeByLanguage = JSON.parse(session.code);
 
     res.json({
@@ -153,6 +181,7 @@ app.post("/sessions/:sessionId/participants", async (req, res) => {
 
     const count = await prisma.participant.count({ where: { sessionId } });
     const participants = await prisma.participant.findMany({ where: { sessionId } });
+    await touchSession(sessionId);
 
     res.json({
       sessionId,
@@ -175,6 +204,7 @@ app.delete("/sessions/:sessionId/participants/:participantId", async (req, res) 
 
     const count = await prisma.participant.count({ where: { sessionId } });
     const participants = await prisma.participant.findMany({ where: { sessionId } });
+    await touchSession(sessionId);
 
     res.json({
       sessionId,
@@ -262,3 +292,7 @@ app.get("*", (req, res) => {
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
+// Cleanup stale sessions on an hourly cadence
+cleanupStaleSessions();
+setInterval(cleanupStaleSessions, 60 * 60 * 1000);

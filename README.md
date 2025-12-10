@@ -4,11 +4,14 @@ Real-time collaboration suite for developers. Code together, draw diagrams, and 
 
 ## Demo
 
+Drawing:
 <p>
-  <img src="docs/drawing_demo.png" alt="Whiteboard drawing demo" width="700">
+  <img src="docs/drawing_demo_1209.png" alt="Whiteboard drawing demo" width="700">
 </p>
+
+Coding + video call:
 <p>
-  <img src="docs/coding_huddle_demo.png" alt="Collaborative coding huddle" width="700">
+  <img src="docs/coding_huddle_demo_1209.png" alt="Collaborative coding huddle" width="700">
 </p>
 
 ## Features
@@ -19,13 +22,20 @@ Real-time collaboration suite for developers. Code together, draw diagrams, and 
 - 🚀 **Multi-Language Execution** – Run JavaScript, Python (via Pyodide), and SQL
 - 💾 **Persistent Sessions** – Sessions and code are saved to a database (SQLite/PostgreSQL)
 - ⚡ **Real-Time Sync** – Powered by Socket.IO for instant updates
+- ⏳ **24h Session Cleanup** – Inactive sessions auto-delete after 24 hours; no long-term user data retained
 
-## Tech Stack
+## Tech Stack at a Glance
 
-**Frontend:** React + TypeScript + Vite + Monaco Editor  
-**Backend:** Node.js + Express + Socket.IO + Prisma  
-**Database:** PostgreSQL (local + production; dev via Docker)  
-**Deployment:** Render (single-container blueprint)
+| Part | What it does | Tech stack used | Beginner explanation |
+| --- | --- | --- | --- |
+| Client (Frontend) | What users see and interact with | Vite + React + TypeScript; Socket.IO client for real-time code/whiteboard/cursor | The web UI in your browser; React renders screens and Socket.IO keeps everyone in sync live. |
+| Server (Backend) | Business logic + APIs + real-time hub | Node.js with Express + Socket.IO; Prisma ORM | The app’s “brain” and relay: serves APIs, stores data, and broadcasts live updates between users. |
+| Database | Persistent storage | Postgres (prod), Prisma-managed | Where session data and code live so it’s saved and shared. |
+| Video layer | Peer-to-peer video/voice | WebRTC | Direct browser-to-browser video/audio streaming for huddles. |
+| Tests | Automated checks | Client: Vitest; Backend: Pytest (unit + integration) | Scripts that run code to catch bugs. |
+| Containerization | Run anywhere | Docker Compose (frontend + backend + Postgres) | Packages all parts into containers so they run consistently on any machine. |
+| Deployment | Put it online | Render | Hosted service that builds and runs the app in the cloud. |
+| CI/CD | Automate test/deploy | GitHub Actions | Runs lint/tests and triggers Render deploys on pushes to `main`. |
 
 ## Project Structure
 
@@ -67,42 +77,3 @@ npm run dev
 - Backend API/Socket: `http://localhost:4000` (or `PORT` if you set it)
 
 If you see “address already in use,” free port 4000 or start with `PORT=4100 npm start --prefix server`.
-
-### Testing collaboration locally
-
-1) Open two tabs at `http://localhost:5173`  
-2) Start a session in one tab and copy the URL  
-3) Paste the session URL into the second tab  
-4) Type in one tab and watch it sync in the other (code, cursors, and participant count)
-
-## Production Build
-
-```bash
-# Build frontend and bundle into server/public
-npm run build
-
-# Start production server (DATABASE_URL must point to Postgres)
-npm start
-```
-
-## Docker (all-in-one local stack)
-
-```bash
-docker compose up --build
-```
-- Nginx + frontend: `http://localhost:8080`
-- Backend: reachable inside the Compose network at `backend:4000` (proxied to the frontend at `/api`)
-- Postgres: internal service `db:5432`
-
-## Deployment (Render)
-
-- Render reads `render.yaml` at the repo root.  
-- Build: `npm run build` then `cd server && npx prisma generate`  
-- Start: `cd server && npx prisma db push && node src/server.js`
-- Ensure `DATABASE_URL` is set to the Render Postgres connection string; `PORT` will be provided by Render.
-
-## Environment Variables
-
-- `DATABASE_URL` – PostgreSQL connection string (required)
-- `PORT` – Server port (default: 4000; Render sets this automatically)
-- `CLIENT_ORIGIN` – Frontend URL for CORS (set to your deployed URL)

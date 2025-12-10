@@ -80,6 +80,11 @@ export function LandingPage() {
             </p>
           )}
 
+          {/* Data retention note */}
+          <p className="mt-6 text-xs text-muted-foreground">
+            Sessions auto-clean after 24 hours of inactivity; no user data is retained.
+          </p>
+
           {/* Features Grid */}
           <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6">
             <FeatureCard
@@ -102,8 +107,19 @@ export function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-sm text-muted-foreground">
-        Built for collaborative coding, learning, and huddles.
+      <footer className="py-8 text-center text-sm text-muted-foreground border-t border-border bg-card/40">
+        <p className="text-muted-foreground mb-2">Built for collaborative coding, learning, and huddles.</p>
+        <p className="text-xs">
+          This is a vibe coding project by Carina Ye. Open source on{" "}
+          <a
+            className="text-primary hover:text-primary/80 font-medium"
+            href="https://github.com/fisher-c/code-duo"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub
+          </a>.
+        </p>
       </footer>
     </div>
   );
