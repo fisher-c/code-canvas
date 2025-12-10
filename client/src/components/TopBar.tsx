@@ -35,7 +35,7 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
   };
 
   return (
-    <header className="h-14 border-b border-border bg-card px-4 flex items-center justify-between">
+    <header className="min-h-14 border-b border-border bg-card px-3 sm:px-4 py-2 sm:py-0 flex flex-wrap items-center gap-2 sm:gap-4">
       {/* Left: Logo and App Name */}
       <div className="flex items-center gap-3">
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -44,22 +44,22 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
           </div>
           <div className="flex flex-col leading-tight">
             <span className="text-lg font-semibold text-foreground">CodeCanvas</span>
-            <span className="text-xs text-muted-foreground">Real-time Collaboration</span>
+            <span className="text-xs text-muted-foreground hidden sm:block">Real-time Collaboration</span>
           </div>
         </Link>
       </div>
 
       {/* Center: Session ID (if in session) */}
       {sessionId && (
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-md">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-md whitespace-nowrap">
             <span className="text-sm text-muted-foreground">Workspace:</span>
             <code className="text-sm font-mono font-medium text-foreground">{sessionId}</code>
           </div>
 
           <button
             onClick={handleCopyLink}
-            className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-accent text-secondary-foreground rounded-md transition-colors text-sm"
+            className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-accent text-secondary-foreground rounded-md transition-colors text-sm whitespace-nowrap"
           >
             {copied ? (
               <>
@@ -78,7 +78,7 @@ export function TopBar({ sessionId, isConnected = false, connectedUsers = 1, isH
 
       {/* Right: Huddle Button, Connection Status and Users */}
       {sessionId && (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
           {/* Huddle Toggle Button */}
           {onHuddleToggle && (
             <button

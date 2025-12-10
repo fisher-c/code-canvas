@@ -136,10 +136,10 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingEvents }:
     if (!isOpen) return null;
 
     return (
-        <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col animate-fade-in">
+        <div className="absolute inset-x-0 bottom-0 top-14 z-50 bg-background/95 backdrop-blur-sm flex flex-col animate-fade-in">
             {/* Toolbar */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card shadow-sm">
-                <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-3 py-2 border-b border-border bg-card shadow-sm">
+                <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto pb-1 sm:pb-0">
                     <div className="flex items-center gap-2">
                         <Pen className="w-4 h-4 text-primary" />
                         <span className="font-medium">Whiteboard</span>
@@ -164,7 +164,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingEvents }:
 
                     <button
                         onClick={clearBoard}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors shrink-0"
                     >
                         <Eraser className="w-4 h-4" />
                         Clear
@@ -173,7 +173,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingEvents }:
 
                 <button
                     onClick={onClose}
-                    className="p-2 hover:bg-accent rounded-full transition-colors"
+                    className="p-2 hover:bg-accent rounded-full transition-colors self-end sm:self-auto shrink-0"
                 >
                     <X className="w-5 h-5" />
                 </button>
